@@ -37,5 +37,6 @@ public:
 	Server(unsigned int port);
 	void checkRecvMessage();
 	void checkSendMessage();
+	void checkSendACKMessage();
 	void checkClient();
 };

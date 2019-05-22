@@ -2,6 +2,7 @@
 #include <thread>
 #include "lib/rapidjson/document.h"
 #include "lib/rapidjson/stringbuffer.h"
+#include "lib/rapidjson/writer.h"
 #include "lib/main.h"
 
 using namespace rapidjson;
@@ -117,6 +118,19 @@ void Server::checkRecvMessage() {
 		sendOutputs = false;
 		scenario.stop();
 	}
+	else if (d.HasMember("mymessage")) {
+		const Value& message = d["mymessage"];
+		//scenario.PrintMessage((char*)message.GetString());
+		scenario.parseCarConfig(message);
+	}
+	else if (d.HasMember("setcamera")) {
+		const Value& message = d["setcamera"];
+		scenario.setCamera(message);
+	}
+	else if (d.HasMember("iscar")) {
+		const Value& message = d["iscar"];
+		scenario.isCar(message);
+	}
 	else {
 		return; //Invalid message
 	}
@@ -194,6 +208,51 @@ void Server::checkSendMessage() {
 		}
 		lastSentMessage = std::clock();
 	}	
+}
+
+void Server::checkSendACKMessage() {
+	int error;
+	int r;
+
+	Document d;
+	d["pklot_state"] = "done";
+
+	StringBuffer message;
+	message.Clear();
+	Writer<StringBuffer> writer(message);
+
+	d.Accept(writer);
+
+	const char* chmessage = message.GetString();
+	int messageSize = message.GetSize();
+	int sendMessageLen = 0;
+
+	readyToSend = false;
+	
+	if (!readyToSend) {
+		send(ClientSocket, (const char*)& messageSize, sizeof(messageSize), 0);
+		error = WSAGetLastError();
+		if (error == WSAEWOULDBLOCK) return;
+		if (error != 0) {
+			printf("\nError sending message length: %d", error);
+			resetState();
+			return;
+		}
+		readyToSend = true;
+		sendMessageLen = 0;
+	}
+
+	while (readyToSend && (sendMessageLen < messageSize)) {
+		r = send(ClientSocket, (const char*)(chmessage + sendMessageLen), messageSize - sendMessageLen, 0);
+		error = WSAGetLastError();
+		if (error == WSAEWOULDBLOCK) return;
+		if (error != 0 || r <= 1) {
+			printf("\nError sending message: %d", error);
+			resetState();
+			return;
+		}
+		sendMessageLen = sendMessageLen + r;
+	}
 }
 
 void Server::resetState() {

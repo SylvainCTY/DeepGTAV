@@ -1,7 +1,7 @@
 //DATASET
 #define _RATE_ 10
-#define _WIDTH_ 320
-#define _HEIGHT_ 160
+#define _WIDTH_ 800 //320
+#define _HEIGHT_ 600 //160
 #define _VEHICLES_ false
 #define _PEDS_ false
 #define _TRAFFIC_SIGNS_ false

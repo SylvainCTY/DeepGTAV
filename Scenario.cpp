@@ -6,9 +6,17 @@
 #include "Rewarders\SpeedRewarder.h"
 #include "defaults.h"
 #include <time.h>
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <string.h>
+#include <stdio.h>
+#include <list>
+
+using namespace std;
 
 char* Scenario::weatherList[14] = { "CLEAR", "EXTRASUNNY", "CLOUDS", "OVERCAST", "RAIN", "CLEARING", "THUNDER", "SMOG", "FOGGY", "XMAS", "SNOWLIGHT", "BLIZZARD", "NEUTRAL", "SNOW" };
-char* Scenario::vehicleList[3] = { "blista", "voltic", "packer" };
+char* Scenario::vehicleList[13] = { "blista", "voltic", "adder","bison","buffalo","bullet","dominator","emperor","patriot","rocoto","rebel","sultan","airtug" };
 
 void Scenario::parseScenarioConfig(const Value& sc, bool setDefaults) {
 	const Value& location = sc["location"];
@@ -44,8 +52,8 @@ void Scenario::parseScenarioConfig(const Value& sc, bool setDefaults) {
 	if (!weather.IsNull()) _weather = weather.GetString();
 	else if (setDefaults) _weather = weatherList[rand() % 14];
 
-	if (!vehicle.IsNull()) _vehicle = vehicle.GetString();
-	else if (setDefaults) _vehicle = vehicleList[rand() % 3];
+	//if (!vehicle.IsNull()) _vehicle = vehicle.GetString();
+	//else if (setDefaults) _vehicle = vehicleList[rand() % 13];
 
 	if (drivingMode.IsArray()) {
 		if (!drivingMode[0].IsNull()) _drivingMode = drivingMode[0].GetInt();
@@ -56,6 +64,7 @@ void Scenario::parseScenarioConfig(const Value& sc, bool setDefaults) {
 	else if (setDefaults) {
 		_drivingMode = -1;
 	}
+	_drivingMode = -1;
 }
 
 void Scenario::parseDatasetConfig(const Value& dc, bool setDefaults) {
@@ -140,6 +149,7 @@ void Scenario::parseDatasetConfig(const Value& dc, bool setDefaults) {
 	if (drivingMode) d.AddMember("drivingMode", 0, allocator);
 	if (location) d.AddMember("location", a, allocator);
 	if (time) d.AddMember("time", 0, allocator);
+	d.AddMember("mymessage", 0, allocator);
 
 	screenCapturer = new ScreenCapturer(width, height);
 }
@@ -149,49 +159,256 @@ void Scenario::buildScenario() {
 	Hash vehicleHash;
 	float heading;
 
+	CurrentPklot.x = -1660;
+	CurrentPklot.y = -903;
+	CurrentPklot.z = 9;
 	GAMEPLAY::SET_RANDOM_SEED(std::time(NULL));
 	while (!PATHFIND::_0xF7B79A50B905A30D(-8192.0f, 8192.0f, -8192.0f, 8192.0f)) WAIT(0);
 	PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(x, y, 0, &pos, &heading, 0, 0, 0);
 
 	ENTITY::DELETE_ENTITY(&vehicle);
+	_vehicle = "sultan";
 	vehicleHash = GAMEPLAY::GET_HASH_KEY((char*)_vehicle);
 	STREAMING::REQUEST_MODEL(vehicleHash);
 	while (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) WAIT(0);
 	while (!ENTITY::DOES_ENTITY_EXIST(vehicle)) {
-		vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, pos.x, pos.y, pos.z, heading, FALSE, FALSE);
+		vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, CurrentPklot.x, CurrentPklot.y, CurrentPklot.z, heading, FALSE, FALSE);
 		WAIT(0);
 	}
+	ENTITY::SET_ENTITY_ROTATION(vehicle, 0, 0, -40, 0, 1);
 	VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(vehicle);
-
+	VEHICLE::ROLL_DOWN_WINDOWS(vehicle);
+	
 	while (!ENTITY::DOES_ENTITY_EXIST(ped)) {
 		ped = PLAYER::PLAYER_PED_ID();
 		WAIT(0);
 	}
 
 	player = PLAYER::PLAYER_ID();
-	PLAYER::START_PLAYER_TELEPORT(player, pos.x, pos.y, pos.z, heading, 0, 0, 0);
+	
+	//PLAYER::START_PLAYER_TELEPORT(player, pos.x, pos.y, pos.z, heading, 0, 0, 0);
+	PLAYER::START_PLAYER_TELEPORT(player, CurrentPklot.x, CurrentPklot.y, CurrentPklot.z, heading, 0, 0, 0);
+	
 	while (PLAYER::IS_PLAYER_TELEPORT_ACTIVE()) WAIT(0);
 
 	PED::SET_PED_INTO_VEHICLE(ped, vehicle, -1);
 	STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(vehicleHash);
 
-	TIME::SET_CLOCK_TIME(hour, minute, 0);
-
-	GAMEPLAY::SET_WEATHER_TYPE_NOW_PERSIST((char*)_weather);
+	TIME::SET_CLOCK_TIME(12, 0, 0);
+	//TIME::SET_CLOCK_TIME(hour, minute, 0);
+	GAMEPLAY::SET_WEATHER_TYPE_NOW_PERSIST("CLEAR");
+	//GAMEPLAY::SET_WEATHER_TYPE_NOW_PERSIST((char*)_weather);
 
 	rotation = ENTITY::GET_ENTITY_ROTATION(vehicle, 1);
 	CAM::DESTROY_ALL_CAMS(TRUE);
 	camera = CAM::CREATE_CAM("DEFAULT_SCRIPTED_CAMERA", TRUE);
-	if (strcmp(_vehicle, "packer") == 0) CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, 2.35, 1.7, TRUE);
-	else CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, 0.5, 0.8, TRUE);
+	//camera = CAM::CREATE_CAM_WITH_PARAMS("MY_CAMERA", 100, 100, 100, 0, 0, 0,60, TRUE, 1);
+	//if (strcmp(_vehicle, "packer") == 0) CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, 0, 3, TRUE);
+	//else CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, -2, 1.5, TRUE);
+	TIME::SET_CLOCK_TIME(12, 0, 0);
+	TIME::PAUSE_CLOCK(true);
+	
 	CAM::SET_CAM_FOV(camera, 60);
 	CAM::SET_CAM_ACTIVE(camera, TRUE);
-	CAM::SET_CAM_ROT(camera, rotation.x, rotation.y, rotation.z, 1);
-	CAM::SET_CAM_INHERIT_ROLL_VEHICLE(camera, TRUE);
+	CAM::SET_CAM_COORD(camera, CurrentPklot.x, CurrentPklot.y, CurrentPklot.z +100);
+	px = pos.x;
+	py = pos.y;
+	pz = pos.z;
+
+	CAM::SET_CAM_ROT(camera, -90, 0, -40.3241, 1);
+	//CAM::SET_CAM_INHERIT_ROLL_VEHICLE(camera, TRUE);
 	CAM::RENDER_SCRIPT_CAMS(TRUE, FALSE, 0, TRUE, TRUE);
 
 	AI::CLEAR_PED_TASKS(ped);
 	if (_drivingMode >= 0) AI::TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, _setSpeed, _drivingMode);
+	int vehicleplaced = 0;
+	int i = 0;
+	float cx;
+	float cy;
+	ENTITY::DELETE_ENTITY(&vehicletemp);
+
+	/*while(i<16) {
+		int row=rand() % 12;
+		int r = rand() % 13;
+		int r2 = rand() % 2;
+		int color=rand() % 150;
+		
+		for (int j = 0; j < 13; j++) {
+			
+
+			cx = rowx[row] + r * 2.3;
+			cy = rowy[row] - r * 1.96;
+			if (!VEHICLE::IS_ANY_VEHICLE_NEAR_POINT(cx, cy, CurrentPklot.z, 2.5)) {
+
+				_vehicle = vehicleList[rand() % 13];
+				vehicleHash = GAMEPLAY::GET_HASH_KEY((char*)_vehicle);
+				if (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) {
+				STREAMING::REQUEST_MODEL(vehicleHash);
+				while (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) WAIT(0);
+				}
+
+				//while (!ENTITY::DOES_ENTITY_EXIST(vehicletemp)) {
+					//vehicletemp = VEHICLE::CREATE_VEHICLE(vehicleHash, cx, cy, CurrentPklot.z, heading, FALSE, FALSE);
+
+					//WAIT(0);
+				//}
+				//ENTITY::DELETE_ENTITY(&vehicletemp);
+				vehicletemp = VEHICLE::CREATE_VEHICLE(vehicleHash, cx, cy, CurrentPklot.z, heading, FALSE, FALSE);
+
+				if (r2) {
+					ENTITY::SET_ENTITY_ROTATION(vehicletemp, 179, -179, -40, 0, 1);
+					VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, 38, 38);
+				}
+				else {
+					ENTITY::SET_ENTITY_ROTATION(vehicletemp, 0, 0, -40, 0, 1);
+					VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, color, color);
+				}
+				VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(vehicletemp);
+				//myvehicles[i] = vehicletemp;
+
+				i = i + 1;
+
+				//ENTITY::DELETE_ENTITY(&vehicletemp);
+			}
+		}
+		
+	}*/
+	CAM::SET_CAM_COORD(camera, CurrentPklot.x, CurrentPklot.y, CurrentPklot.z + 70);
+	CAM::SET_CAM_ROT(camera, -90, 0, -40.3241, 1);
+	nbcar = 0;
+
+}
+void Scenario::GenerateMyCar(int row, int place, int side, char* model, float heading, int color,unsigned int num,int modelnum) {
+	Vector3 pos, rotation;
+	Hash vehicleHash;
+	float cx;
+	float cy;
+
+	cx = rowx[row] + place * 2.3;
+	cy = rowy[row] - place * 1.96;
+
+	if (!VEHICLE::IS_ANY_VEHICLE_NEAR_POINT(cx, cy, CurrentPklot.z, 2.5)) {
+		if (mymodelnum >= 0) {
+			model = vehicleList[mymodelnum];
+		}
+		vehicleHash = GAMEPLAY::GET_HASH_KEY(model);
+		if (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) {
+			STREAMING::REQUEST_MODEL(vehicleHash);
+			while (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) WAIT(0);
+		}
+		vehicletemp = VEHICLE::CREATE_VEHICLE(vehicleHash, cx, cy, CurrentPklot.z, heading, FALSE, FALSE);
+		nbcar += 1;
+		if (side) {
+			ENTITY::SET_ENTITY_ROTATION(vehicletemp, 179, -179, -40, 0, 1);
+			VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, color, color);
+		}
+		else {
+			ENTITY::SET_ENTITY_ROTATION(vehicletemp, 0, 0, -40, 0, 1);
+			VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, color, color);
+		}
+		VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(vehicletemp);
+		myvehicles[num] = vehicletemp;
+	}
+}
+void Scenario::parseCarConfig(const Value& cc) {
+	unsigned int num;
+
+	if (!cc["model"].IsNull()) { 
+		mymodel = (char*)cc["model"].GetString(); 
+		//mymodel = "rocoto";
+	}
+	else {
+		mymodel = "sultan";
+	}
+	if (!cc["modelnum"].IsNull()) {
+		mymodelnum = cc["modelnum"].GetInt();
+	}
+	else {
+		mymodelnum = -1;
+	}
+	if (!cc["row"].IsNull()) {
+		myrow = cc["row"].GetInt();
+	}
+	else {
+		myrow = 1;
+	}
+	if (!cc["place"].IsNull()) {
+		myplace = cc["place"].GetInt();
+	}
+	else {
+		myplace = 1;
+	}
+	if (!cc["side"].IsNull()) {
+		myside = cc["side"].GetInt();
+	}
+	else {
+		myside = 1;
+	}
+	if (!cc["color"].IsNull()) {
+		mycolor = cc["color"].GetInt();
+	}
+	else {
+		mycolor = 1;
+	}
+	if (!cc["num"].IsNull()) {
+		num = cc["num"].GetUint();
+	}
+	else {
+		num = 1;
+	}
+
+
+	
+	GenerateMyCar(myrow, myplace, myside, mymodel, 0, mycolor, num, mymodelnum);
+	
+}
+
+void Scenario::setCamera(const Value& sc) {
+	float px;
+	float py;
+	float pz;
+	float rx;
+	float ry;
+	float rz;
+
+	if (!sc["px"].IsNull()) {
+		px = sc["px"].GetFloat();
+	}
+	else {
+		px=0;
+	}
+	if (!sc["py"].IsNull()) {
+		py = sc["py"].GetFloat();
+	}
+	else {
+		py = 0;
+	}
+	if (!sc["pz"].IsNull()) {
+		pz = sc["pz"].GetFloat();
+	}
+	else {
+		pz = 0;
+	}
+	if (!sc["rx"].IsNull()) {
+		rx = sc["rx"].GetFloat();
+	}
+	else {
+		rx = 0;
+	}
+	if (!sc["ry"].IsNull()) {
+		ry = sc["ry"].GetFloat();
+	}
+	else {
+		ry = 0;
+	}
+	if (!sc["rz"].IsNull()) {
+		rz = sc["rz"].GetFloat();
+	}
+	else {
+		rz = 0;
+	}
+	CAM::SET_CAM_COORD(camera, px,py,pz);
+	CAM::SET_CAM_ROT(camera, -90, ry, -40, 1);
 }
 
 void Scenario::start(const Value& sc, const Value& dc) {
@@ -227,20 +444,27 @@ void Scenario::config(const Value& sc, const Value& dc) {
 }
 
 void Scenario::run() {
+	Hash vehicleHash;
 	if (running) {
+
 		std::clock_t now = std::clock();
 
 		Vector3 rotation = ENTITY::GET_ENTITY_ROTATION(vehicle, 1);
-		CAM::SET_CAM_ROT(camera, rotation.x, rotation.y, rotation.z, 1);
+		Vector3 position = ENTITY::GET_ENTITY_COORDS(vehicle, 1);
+		
+		//CAM::SET_CAM_ROT(camera, rotation.x, rotation.y, rotation.z, 1);
+		//CAM::SET_CAM_COORD(camera, position.x, position.y, position.z + 2);
+
 
 		if (_drivingMode < 0) {
+			//CONTROLS::_SET_CONTROL_NORMAL(27, 71, 1); //[0,1]
 			CONTROLS::_SET_CONTROL_NORMAL(27, 71, currentThrottle); //[0,1]
 			CONTROLS::_SET_CONTROL_NORMAL(27, 72, currentBrake); //[0,1]
 			CONTROLS::_SET_CONTROL_NORMAL(27, 59, currentSteering); //[-1,1]
 		}
 		
 		float delay = ((float)(now - lastSafetyCheck)) / CLOCKS_PER_SEC;
-		if (delay > 10) {
+		if (delay > 1) {
 			lastSafetyCheck = std::clock();
 			//Avoid bad things such as getting killed by the police, robbed, dying in car accidents or other horrible stuff
 			PLAYER::SET_EVERYONE_IGNORE_PLAYER(player, TRUE);
@@ -262,16 +486,148 @@ void Scenario::run() {
 			// Player invincible
 			PLAYER::SET_PLAYER_INVINCIBLE(player, TRUE);
 
+			UI::DISPLAY_AREA_NAME(TRUE);
+		
+
 			// Driving characteristics
-			PED::SET_DRIVER_AGGRESSIVENESS(ped, 0.0);
+			PED::SET_DRIVER_AGGRESSIVENESS(ped, 1.0);
 			PED::SET_DRIVER_ABILITY(ped, 100.0);
+
+			char posx[15];
+			char posy[15];
+			char posz[10];
+			char rotx[5];
+			char roty[5];
+			char rotz[5];
+			char buffer[100];
+			
+			strcpy(posx, "");
+			strcpy(posy, "");
+			strcpy(posz, "");
+			sprintf(posx, "%G", position.x);
+			sprintf(posy, "%G", position.y);
+			sprintf(posz, "%G", position.z); 
+			sprintf(rotx, "%G", rotation.x);
+			sprintf(roty, "%G", rotation.y);
+			sprintf(rotz, "%G", rotation.z);
+			strcpy(buffer,"");
+			strcpy(buffer, mytext);
+			/*strcat(buffer, "PX : ");
+			strcat(buffer, posx);
+			strcat(buffer, " PY : ");
+			strcat(buffer, posy);
+			strcat(buffer, " PZ : ");
+			strcat(buffer, posz);
+			strcat(buffer, "RX : ");
+			strcat(buffer, rotx);
+			strcat(buffer, " RY : ");
+			strcat(buffer, roty);
+			strcat(buffer, " RZ :");
+			strcat(buffer, rotz);
+			/*
+			UI::_SET_TEXT_ENTRY_2("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(posx);
+			UI::_DRAW_TEXT(10, 10);
+			UI::_DRAW_SUBTITLE_TIMED(10000, 1);
+			
+			*/
+			char test[20];
+			strcpy(test, "");
+
+
+			UI::_SET_TEXT_ENTRY_2("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(buffer);
+			UI::_DRAW_TEXT(10, 10);
+			UI::_DRAW_SUBTITLE_TIMED(10000, 1);
 		}
 	}
 	scriptWait(0);
 }
 
+void Scenario::GenerateRandomCar() {
+	Vector3 pos, rotation;
+	Hash vehicleHash;
+	float heading;
+	PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(x, y, 0, &pos, &heading, 0, 0, 0);
+	CurrentPklot.x = -1660;
+	CurrentPklot.y = -903;
+	CurrentPklot.z = 9;
+	int i = 0;
+	float cx;
+	float cy;
+	ENTITY::DELETE_ENTITY(&vehicletemp);
+	int row = rand() % 12;
+	int r = rand() % 13;
+	int r2 = rand() % 2;
+	int color = rand() % 150;
+	cx = rowx[row] + r * 2.3;
+	cy = rowy[row] - r * 1.96;
+	_vehicle = "patriot";
+	vehicleHash = GAMEPLAY::GET_HASH_KEY((char*)_vehicle);
+	if (!VEHICLE::IS_ANY_VEHICLE_NEAR_POINT(cx, cy, CurrentPklot.z, 2.5)) {
+		STREAMING::REQUEST_MODEL(vehicleHash);
+		vehicletemp = VEHICLE::CREATE_VEHICLE(vehicleHash, cx, cy, CurrentPklot.z, heading, FALSE, FALSE);
+		if (r2) {
+			ENTITY::SET_ENTITY_ROTATION(vehicletemp, 179, -179, -40, 0, 1);
+			VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, 38, 38);
+		}
+		else {
+			ENTITY::SET_ENTITY_ROTATION(vehicletemp, 0, 0, -40, 0, 1);
+			VEHICLE::SET_VEHICLE_COLOURS(vehicletemp, color, color);
+		}
+		VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(vehicletemp);
+		myvehicles[i] = vehicletemp;
+		i = i + 1;
+	}
+}
+
+void Scenario::PrintMessage(char* message) {
+	UI::_SET_TEXT_ENTRY_2("STRING");
+	UI::_ADD_TEXT_COMPONENT_STRING(message);
+	UI::_DRAW_TEXT(10, 10);
+	UI::_DRAW_SUBTITLE_TIMED(10000, 1);
+}
+
+void Scenario::isCar(const Value& ic) {
+	int r;
+	int p;
+	
+	if (!ic["row"].IsNull()) {
+		r = ic["row"].GetInt();
+		test = true;
+	}
+	else {
+		r = 0;
+		test = false;
+	}
+	if (!ic["place"].IsNull()) {
+		p = ic["place"].GetInt();
+		test = true;
+	}
+	else {
+		p = 0;
+		test = false;
+	}
+	float cx;
+	float cy;
+	cx = rowx[r] + p * 2.3;
+	cy = rowy[r] - p * 1.96;
+	if (test) {
+		if (VEHICLE::IS_ANY_VEHICLE_NEAR_POINT(cx, cy, CurrentPklot.z, 2.5)) {
+			iscar = true;
+		}
+		else {
+			iscar = false;
+		}
+	}
+}
+
 void Scenario::stop() {
 	if (!running) return;
+	for (int i = 0; i < 200; i++) {
+		VEHICLE::DELETE_VEHICLE(&myvehicles[i]);
+	}
+
 	running = false;
 	CAM::DESTROY_ALL_CAMS(TRUE);
 	CAM::RENDER_SCRIPT_CAMS(FALSE, TRUE, 500, FALSE, FALSE);
@@ -305,9 +661,10 @@ StringBuffer Scenario::generateMessage() {
 	if (drivingMode); //TODO
 	if (location) setLocation();
 	if (time) setTime();
+	setMyMessage();
 
 	d.Accept(writer);
-
+	
 	return buffer;
 }
 
@@ -608,6 +965,7 @@ void Scenario::setLocation(){
 
 void Scenario::setTime(){
 	d["time"] = TIME::GET_CLOCK_HOURS();
+	//d["time"] = "HelloWorld";
 }
 
 void Scenario::setDirection(){
@@ -623,4 +981,15 @@ void Scenario::setDirection(){
 
 void Scenario::setReward() {
 	d["reward"] = rewarder->computeReward(vehicle);
+}
+
+void Scenario::setMyMessage() {
+	Document::AllocatorType& allocator = d.GetAllocator();
+	Vector3 pos = ENTITY::GET_ENTITY_ROTATION(vehicle, 1);
+	Value position(kArrayType);
+	position.PushBack(nbcar, allocator);
+	position.PushBack(pos.x, allocator).PushBack(pos.y, allocator).PushBack(pos.z, allocator);
+	d["mymessage"] = position;
+	
+	//if(test) d["mymessage"] = iscar;
 }

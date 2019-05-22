@@ -1,6 +1,11 @@
 #include "ScreenCapturer.h"
 #include "lib/natives.h"
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <string>
+
+using namespace std;
 
 ScreenCapturer::ScreenCapturer(int frameWidth, int frameHeight){
 	imageWidth = frameWidth;
@@ -36,6 +41,10 @@ ScreenCapturer::~ScreenCapturer(){
 }
 
 void ScreenCapturer::capture() {
-	StretchBlt(hCaptureDC, 0, 0, imageWidth, imageHeight, hWindowDC, 0, 0, windowWidth, windowHeight, SRCCOPY);
+	//StretchBlt(hCaptureDC, 1920/2-imageWidth/2, -1200/2+imageHeight/2, 1920 / 2 + imageWidth / 2, -1200 / 2 - imageHeight / 2, hWindowDC, 0, 0, windowWidth, windowHeight, SRCCOPY);
+	StretchBlt(hCaptureDC,0,0, imageWidth, imageHeight, hWindowDC,565,300,800,625, SRCCOPY);
 	GetDIBits(hCaptureDC, hCaptureBitmap, 0, imageHeight, pixels, (BITMAPINFO*)&info, DIB_RGB_COLORS);
+
+
+
 }

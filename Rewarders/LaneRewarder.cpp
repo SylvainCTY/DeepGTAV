@@ -1,4 +1,5 @@
 #include <map>
+#include <stdexcept>
 #include "LaneRewarder.h"
 #include "../lib/tinyxml2.h"
 
