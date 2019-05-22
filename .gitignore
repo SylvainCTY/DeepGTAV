@@ -1,3 +1,4 @@
 tmp/
 bin/Release/paths.xml
 .vs
+__pycache__
